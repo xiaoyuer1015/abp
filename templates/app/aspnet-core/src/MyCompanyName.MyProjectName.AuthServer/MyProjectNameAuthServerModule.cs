@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Linq;
 using Localization.Resources.AbpUi;
+using Medallion.Threading;
+using Medallion.Threading.Redis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.DataProtection;
@@ -26,6 +28,7 @@ using Volo.Abp.Autofac;
 using Volo.Abp.BackgroundJobs;
 using Volo.Abp.Caching;
 using Volo.Abp.Caching.StackExchangeRedis;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Localization;
 using Volo.Abp.Modularity;
 using Volo.Abp.UI.Navigation.Urls;
@@ -42,7 +45,8 @@ namespace MyCompanyName.MyProjectName;
     typeof(AbpAccountHttpApiModule),
     typeof(AbpAspNetCoreMvcUiLeptonXLiteThemeModule),
     typeof(MyProjectNameEntityFrameworkCoreModule),
-    typeof(AbpAspNetCoreSerilogModule)
+    typeof(AbpAspNetCoreSerilogModule),
+    typeof(AbpDistributedLockingModule)
     )]
 public class MyProjectNameAuthServerModule : AbpModule
 {
@@ -171,6 +175,14 @@ public class MyProjectNameAuthServerModule : AbpModule
                     .AllowAnyMethod()
                     .AllowCredentials();
             });
+        });
+        
+        context.Services.AddSingleton<IDistributedLockProvider>(sp =>
+        {
+            var connection = ConnectionMultiplexer
+                .Connect(configuration["Redis:Configuration"]);
+            return new 
+                RedisDistributedSynchronizationProvider(connection.GetDatabase());
         });
     }
 
