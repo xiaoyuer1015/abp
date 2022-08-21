@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Localization;
 using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
@@ -16,62 +15,16 @@ public class PermissionDefinitionSerializer : IPermissionDefinitionSerializer, I
 {
     protected ISimpleStateCheckerSerializer StateCheckerSerializer { get; }
     protected IGuidGenerator GuidGenerator { get; }
-    protected IStringLocalizerFactory StringLocalizerFactory { get; }
+    protected ILocalizableStringSerializer LocalizableStringSerializer { get; }
 
     public PermissionDefinitionSerializer(
         IGuidGenerator guidGenerator,
-        IStringLocalizerFactory stringLocalizerFactory,
-        ISimpleStateCheckerSerializer stateCheckerSerializer)
+        ISimpleStateCheckerSerializer stateCheckerSerializer, 
+        ILocalizableStringSerializer localizableStringSerializer)
     {
         StateCheckerSerializer = stateCheckerSerializer;
+        LocalizableStringSerializer = localizableStringSerializer;
         GuidGenerator = guidGenerator;
-        StringLocalizerFactory = stringLocalizerFactory;
-    }
-    
-    public Task<PermissionDefinitionRecord> SerializeAsync(
-        PermissionDefinition permission,
-        PermissionGroupDefinition permissionGroup)
-    {
-        using (CultureHelper.Use(CultureInfo.InvariantCulture))
-        {
-            var permissionRecord = new PermissionDefinitionRecord(
-                GuidGenerator.Create(),
-                permissionGroup?.Name,
-                permission.Name,
-                permission.Parent?.Name,
-                permission.DisplayName.Localize(StringLocalizerFactory),
-                permission.IsEnabled,
-                permission.MultiTenancySide,
-                SerializeProviders(permission.Providers),
-                SerializeStateCheckers(permission.StateCheckers)
-            );
-
-            foreach (var property in permission.Properties)
-            {
-                permissionRecord.SetProperty(property.Key, property.Value);
-            }
-            
-            return Task.FromResult(permissionRecord);
-        }
-    }
-
-    public Task<PermissionGroupDefinitionRecord> SerializeAsync(PermissionGroupDefinition permissionGroup)
-    {
-        using (CultureHelper.Use(CultureInfo.InvariantCulture))
-        {
-            var permissionGroupRecord = new PermissionGroupDefinitionRecord(
-                GuidGenerator.Create(),
-                permissionGroup.Name,
-                permissionGroup.DisplayName.Localize(StringLocalizerFactory)
-            );
-
-            foreach (var property in permissionGroup.Properties)
-            {
-                permissionGroupRecord.SetProperty(property.Key, property.Value);
-            }
-            
-            return Task.FromResult(permissionGroupRecord);
-        }
     }
 
     public async Task<(PermissionGroupDefinitionRecord[], PermissionDefinitionRecord[])> 
@@ -92,16 +45,62 @@ public class PermissionDefinitionSerializer : IPermissionDefinitionSerializer, I
 
         return (permissionGroupRecords.ToArray(), permissionRecords.ToArray());
     }
-
-    protected virtual string SerializeStateCheckers(List<ISimpleStateChecker<PermissionDefinition>> stateCheckers)
+    
+    public Task<PermissionGroupDefinitionRecord> SerializeAsync(PermissionGroupDefinition permissionGroup)
     {
-        return StateCheckerSerializer.Serialize(stateCheckers);
-    }
+        using (CultureHelper.Use(CultureInfo.InvariantCulture))
+        {
+            var permissionGroupRecord = new PermissionGroupDefinitionRecord(
+                GuidGenerator.Create(),
+                permissionGroup.Name,
+                LocalizableStringSerializer.Serialize(permissionGroup.DisplayName)
+            );
 
+            foreach (var property in permissionGroup.Properties)
+            {
+                permissionGroupRecord.SetProperty(property.Key, property.Value);
+            }
+            
+            return Task.FromResult(permissionGroupRecord);
+        }
+    }
+    
+    public Task<PermissionDefinitionRecord> SerializeAsync(
+        PermissionDefinition permission,
+        PermissionGroupDefinition permissionGroup)
+    {
+        using (CultureHelper.Use(CultureInfo.InvariantCulture))
+        {
+            var permissionRecord = new PermissionDefinitionRecord(
+                GuidGenerator.Create(),
+                permissionGroup?.Name,
+                permission.Name,
+                permission.Parent?.Name,
+                LocalizableStringSerializer.Serialize(permission.DisplayName),
+                permission.IsEnabled,
+                permission.MultiTenancySide,
+                SerializeProviders(permission.Providers),
+                SerializeStateCheckers(permission.StateCheckers)
+            );
+
+            foreach (var property in permission.Properties)
+            {
+                permissionRecord.SetProperty(property.Key, property.Value);
+            }
+            
+            return Task.FromResult(permissionRecord);
+        }
+    }
+    
     protected virtual string SerializeProviders(ICollection<string> providers)
     {
         return providers.Any()
             ? providers.JoinAsString(",")
             : null;
+    }
+
+    protected virtual string SerializeStateCheckers(List<ISimpleStateChecker<PermissionDefinition>> stateCheckers)
+    {
+        return StateCheckerSerializer.Serialize(stateCheckers);
     }
 }
