@@ -40,6 +40,7 @@ namespace MyCompanyName.MyProjectName;
 [DependsOn(
     typeof(AbpAutofacModule),
     typeof(AbpCachingStackExchangeRedisModule),
+    typeof(AbpDistributedLockingModule),
     typeof(AbpAccountWebOpenIddictModule),
     typeof(AbpAccountApplicationModule),
     typeof(AbpAccountHttpApiModule),
@@ -157,6 +158,13 @@ public class MyProjectNameAuthServerModule : AbpModule
             var redis = ConnectionMultiplexer.Connect(configuration["Redis:Configuration"]);
             dataProtectionBuilder.PersistKeysToStackExchangeRedis(redis, "MyProjectName-Protection-Keys");
         }
+        
+        context.Services.AddSingleton<IDistributedLockProvider>(sp =>
+        {
+            var connection = ConnectionMultiplexer
+                .Connect(configuration["Redis:Configuration"]);
+            return new RedisDistributedSynchronizationProvider(connection.GetDatabase());
+        });
 
         context.Services.AddCors(options =>
         {
