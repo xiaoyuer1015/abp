@@ -10,7 +10,7 @@ ABP Framework extends the [ASP.NET Core distributed cache](https://docs.microsof
 
 [Volo.Abp.Caching](https://www.nuget.org/packages/Volo.Abp.Caching) is the main package of the caching system. You can install it a project using the add-package command of the [ABP CLI](CLI.md):
 
-```
+```bash
 abp add-package Volo.Abp.Caching
 ```
 
